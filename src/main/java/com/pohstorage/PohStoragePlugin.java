@@ -17,6 +17,8 @@ import net.runelite.client.plugins.PluginDescriptor;
 
 import java.util.*;
 
+import static com.pohstorage.PohStorageConfig.preserveFilters.*;
+
 @Slf4j
 @PluginDescriptor(
 		name = "POH Storage",
@@ -118,7 +120,7 @@ public class PohStoragePlugin extends Plugin
 			partialTitle = null;
 			fullTitle = null;
 
-			if (config.preserveFilters().getValue().equals("Never")) {
+			if (config.preserveFilters() == NEVER) {
 				showEmpty = true;
 				showPartial = true;
 				showFull = true;
@@ -163,7 +165,7 @@ public class PohStoragePlugin extends Plugin
 	}
 
 	public void loadConfig() {
-		if (config.preserveFilters().getValue().equals("Across Sessions")) {
+		if (config.preserveFilters() == ACROSS_SESSIONS) {
 			showEmpty = config.showEmptySets();
 			showPartial = config.showPartialSets();
 			showFull = config.showFullSets();
