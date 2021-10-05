@@ -9,19 +9,21 @@ import net.runelite.api.widgets.Widget;
 @Getter
 @Setter
 @AllArgsConstructor
-public class PohStorageWidget {
-    private Widget widget;
-    private int id;
-    private int originalX;
-    private int originalY;
-    private int originalWidth;
-    private int originalOpacity;
-    private int originalSpriteId;
-    private boolean originalHidden;
-    private int originalWidthMode;
-    private int originalXPositionMode;
+public class PohStorageWidget
+{
+	private Widget widget;
+	private int id;
+	private int originalX;
+	private int originalY;
+	private int originalWidth;
+	private int originalOpacity;
+	private int originalSpriteId;
+	private boolean originalHidden;
+	private int originalWidthMode;
+	private int originalXPositionMode;
 
-    public boolean isIcon() {
-        return originalWidth==36;
-    }
+	public boolean isIcon()
+	{
+		return originalWidth == 36;
+	}
 }

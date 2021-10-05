@@ -12,6 +12,7 @@ import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.game.SpriteManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 
@@ -21,9 +22,9 @@ import static com.pohstorage.PohStorageConfig.preserveFilters.*;
 
 @Slf4j
 @PluginDescriptor(
-		name = "POH Storage",
-		description = "Filter and configure POH Storage",
-		tags = {"poh","storage","filter"}
+	name = "POH Storage",
+	description = "Filter and configure POH Storage",
+	tags = {"poh", "storage", "filter"}
 )
 public class PohStoragePlugin extends Plugin
 {
@@ -32,9 +33,10 @@ public class PohStoragePlugin extends Plugin
 	private boolean showFull = true;
 	private int originalScroll;
 	private Widget emptyCheck, partialCheck, fullCheck, emptyTitle, partialTitle, fullTitle;
-	private List <PohStorageSet> storageSets = new ArrayList<PohStorageSet>();
+	private List<PohStorageSet> storageSets = new ArrayList<PohStorageSet>();
 	private List<PohStorageWidget> junkWidgets = new ArrayList<PohStorageWidget>();
 	private List<Widget> addedDividers = new ArrayList<Widget>();
+	private PohSprites[] spriteDefinitions;
 
 	private final String CONFIG_GROUP = "pohstorage";
 	private final String CONTROL_ACTION = "Toggle";
@@ -85,15 +87,23 @@ public class PohStoragePlugin extends Plugin
 	@Inject
 	private PohStorageConfig config;
 
+	@Inject
+	private SpriteManager spriteManager;
+
 	@Override
 	protected void startUp() throws Exception
 	{
 		log.debug("POH Storage Started!");
+
+		spriteManager.addSpriteOverrides(PohSprites.values());
+
 		loadConfig();
-		if (pohStorageLoaded()) {
+		if (pohStorageLoaded())
+		{
 			clientThread.invokeLater(() ->
 			{
-				if (titleCheck()) {
+				if (titleCheck())
+				{
 					originalScroll = client.getWidget(STORAGE_GROUP_ID, STORAGE_ITEM_CONTAINER).getScrollHeight();
 					applyChanges();
 					updateWidgetHeight(CONTAINER_HEIGHT_ADJUSTMENT);
@@ -107,10 +117,12 @@ public class PohStoragePlugin extends Plugin
 	protected void shutDown() throws Exception
 	{
 		log.debug("POH Storage Stopped!");
-		if (pohStorageLoaded()) {
+		if (pohStorageLoaded())
+		{
 			clientThread.invokeLater(() ->
 			{
-				if (titleCheck()) {
+				if (titleCheck())
+				{
 					resetWidgets();
 					removeControls();
 					updateWidgetHeight(-1 * CONTAINER_HEIGHT_ADJUSTMENT);
@@ -123,15 +135,18 @@ public class PohStoragePlugin extends Plugin
 				}
 			});
 		}
+		spriteManager.removeSpriteOverrides(PohSprites.values());
 	}
 
 	@Subscribe
 	public void onWidgetLoaded(WidgetLoaded e)
 	{
-		if (e.getGroupId() == STORAGE_GROUP_ID && pohStorageLoaded()) {
+		if (e.getGroupId() == STORAGE_GROUP_ID && pohStorageLoaded())
+		{
 			clientThread.invokeLater(() ->
 			{
-				if (titleCheck()) {
+				if (titleCheck())
+				{
 					originalScroll = client.getWidget(STORAGE_GROUP_ID, STORAGE_ITEM_CONTAINER).getScrollHeight();
 					applyChanges();
 					updateWidgetHeight(CONTAINER_HEIGHT_ADJUSTMENT);
@@ -144,7 +159,8 @@ public class PohStoragePlugin extends Plugin
 	@Subscribe
 	public void onWidgetClosed(WidgetClosed e)
 	{
-		if (e.getGroupId() == STORAGE_GROUP_ID && pohStorageLoaded()) {
+		if (e.getGroupId() == STORAGE_GROUP_ID && pohStorageLoaded())
+		{
 			emptyCheck = null;
 			partialCheck = null;
 			fullCheck = null;
@@ -152,7 +168,8 @@ public class PohStoragePlugin extends Plugin
 			partialTitle = null;
 			fullTitle = null;
 
-			if (config.preserveFilters() == NEVER) {
+			if (config.preserveFilters() == NEVER)
+			{
 				showEmpty = true;
 				showPartial = true;
 				showFull = true;
@@ -163,11 +180,14 @@ public class PohStoragePlugin extends Plugin
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event)
 	{
-		if (pohStorageLoaded() && event.getContainerId() == InventoryID.INVENTORY.getId()) {
+		if (pohStorageLoaded() && event.getContainerId() == InventoryID.INVENTORY.getId())
+		{
 			clientThread.invokeLater(() ->
 			{
 				if (titleCheck())
+				{
 					applyChanges();
+				}
 			});
 		}
 	}
@@ -176,13 +196,17 @@ public class PohStoragePlugin extends Plugin
 	public void onConfigChanged(ConfigChanged configChanged)
 	{
 		if (pohStorageLoaded() && configChanged.getGroup().equals(CONFIG_GROUP) && !configChanged.getKey().equals("showEmptySets") && !configChanged.getKey().equals("showPartialSets") && !configChanged.getKey().equals("showFullSets"))
+		{
 			clientThread.invokeLater(() ->
 			{
-				if (titleCheck()) {
+				if (titleCheck())
+				{
 					applyChanges();
 				}
 			});
-		else if (configChanged.getGroup().equals(CONFIG_GROUP) && configChanged.getKey().equals("preserveFilters") && configChanged.getNewValue().equals("Never")) {
+		}
+		else if (configChanged.getGroup().equals(CONFIG_GROUP) && configChanged.getKey().equals("preserveFilters") && configChanged.getNewValue().equals("Never"))
+		{
 			showEmpty = true;
 			showPartial = true;
 			showFull = true;
@@ -195,29 +219,35 @@ public class PohStoragePlugin extends Plugin
 		return configManager.getConfig(PohStorageConfig.class);
 	}
 
-	public void loadConfig() {
-		if (config.preserveFilters() == ACROSS_SESSIONS) {
+	public void loadConfig()
+	{
+		if (config.preserveFilters() == ACROSS_SESSIONS)
+		{
 			showEmpty = config.showEmptySets();
 			showPartial = config.showPartialSets();
 			showFull = config.showFullSets();
 		}
 	}
 
-	public void applyChanges() {
+	public void applyChanges()
+	{
 		resetWidgets();
 		updateWidgetLists();
 		adjustWidgets();
 	}
 
-	private boolean pohStorageLoaded() {
+	private boolean pohStorageLoaded()
+	{
 		return client.getWidget(STORAGE_GROUP_ID, STORAGE_TITLE_CONTAINER) != null && client.getWidget(STORAGE_GROUP_ID, STORAGE_ITEM_CONTAINER) != null;
 	}
 
-	private boolean titleCheck() {
+	private boolean titleCheck()
+	{
 		return TITLES.contains(client.getWidget(STORAGE_GROUP_ID, STORAGE_TITLE_CONTAINER).getDynamicChildren()[1].getText().split(TITLE_REGEX)[0].trim());
 	}
 
-	private void updateWidgetHeight(int adjustment) {
+	private void updateWidgetHeight(int adjustment)
+	{
 		Widget contentContainer = client.getWidget(STORAGE_GROUP_ID, STORAGE_CONTENT_CONTAINER);
 		contentContainer.setOriginalHeight(contentContainer.getOriginalHeight() + adjustment);
 		contentContainer.revalidate();
@@ -227,17 +257,23 @@ public class PohStoragePlugin extends Plugin
 		Widget scrollbar = client.getWidget(STORAGE_GROUP_ID, STORAGE_SCROLLBAR);
 		scrollbar.revalidate();
 		for (Widget scrollChild : scrollbar.getDynamicChildren())
+		{
 			scrollChild.revalidate();
+		}
 	}
 
-	private void resetWidgets() {
-		for (PohStorageSet storageSet : storageSets) {
-			for (PohStorageWidget storageWidget : storageSet.getAll()) {
+	private void resetWidgets()
+	{
+		for (PohStorageSet storageSet : storageSets)
+		{
+			for (PohStorageWidget storageWidget : storageSet.getAll())
+			{
 				storageWidget.getWidget().setOriginalX(storageWidget.getOriginalX());
 				storageWidget.getWidget().setOriginalY(storageWidget.getOriginalY());
 				storageWidget.getWidget().setHidden(storageWidget.isOriginalHidden());
 
-				if (!storageWidget.isIcon()) {
+				if (!storageWidget.isIcon())
+				{
 					storageWidget.getWidget().setOpacity(storageWidget.getOriginalOpacity());
 					storageWidget.getWidget().setSpriteId(storageWidget.getOriginalSpriteId());
 					storageWidget.getWidget().setOriginalWidth(storageWidget.getOriginalWidth());
@@ -249,12 +285,14 @@ public class PohStoragePlugin extends Plugin
 			}
 		}
 
-		for (PohStorageWidget junk: junkWidgets) {
+		for (PohStorageWidget junk : junkWidgets)
+		{
 			junk.getWidget().setOriginalX(junk.getOriginalX());
 			junk.getWidget().revalidate();
 		}
 
-		for (Widget addedDivider: addedDividers) {
+		for (Widget addedDivider : addedDividers)
+		{
 			addedDivider.setHidden(true);
 			addedDivider.revalidate();
 		}
@@ -265,23 +303,27 @@ public class PohStoragePlugin extends Plugin
 		container.revalidateScroll();
 
 		client.runScript(
-				ScriptID.UPDATE_SCROLLBAR,
-				STORAGE_GROUP_ID << 16 | STORAGE_SCROLLBAR,
-				STORAGE_GROUP_ID << 16 | STORAGE_ITEM_CONTAINER,
-				container.getScrollY()
+			ScriptID.UPDATE_SCROLLBAR,
+			STORAGE_GROUP_ID << 16 | STORAGE_SCROLLBAR,
+			STORAGE_GROUP_ID << 16 | STORAGE_ITEM_CONTAINER,
+			container.getScrollY()
 		);
 	}
 
-	private void updateWidgetLists() {
+	private void updateWidgetLists()
+	{
 		storageSets = new ArrayList<PohStorageSet>();
 		junkWidgets = new ArrayList<PohStorageWidget>();
 		addedDividers = new ArrayList<Widget>();
 
-		for (Widget widgetItem : client.getWidget(STORAGE_GROUP_ID, STORAGE_ITEM_CONTAINER).getDynamicChildren()) {
-			if (widgetItem.getType()==WidgetType.TEXT) {
+		for (Widget widgetItem : client.getWidget(STORAGE_GROUP_ID, STORAGE_ITEM_CONTAINER).getDynamicChildren())
+		{
+			if (widgetItem.getType() == WidgetType.TEXT)
+			{
 				storageSets.add(newPohStorageSet(widgetItem));
 			}
-			else if (widgetItem.getWidth()==WIDGET_DIVIDER_WIDTH) {
+			else if (widgetItem.getWidth() == WIDGET_DIVIDER_WIDTH)
+			{
 				junkWidgets.add(newPohStorageWidget(widgetItem));
 				widgetItem.setOriginalX(-100);
 				widgetItem.revalidate();
@@ -289,36 +331,44 @@ public class PohStoragePlugin extends Plugin
 		}
 	}
 
-	private void addControls() {
-		if (emptyTitle == null || emptyCheck == null) {
+	private void addControls()
+	{
+		if (emptyTitle == null || emptyCheck == null)
+		{
 			emptyTitle = addControlTitle(client.getWidget(STORAGE_GROUP_ID, STORAGE_TITLE_CONTAINER), SET_TYPE_EMPTY, "Empty Sets");
 			emptyCheck = addControlCheckbox(client.getWidget(STORAGE_GROUP_ID, STORAGE_TITLE_CONTAINER), SET_TYPE_EMPTY, "Empty Sets", showEmpty);
 		}
-		else {
+		else
+		{
 			emptyTitle.setHidden(false);
 			emptyCheck.setHidden(false);
 		}
 
-		if (partialTitle == null || partialCheck == null) {
+		if (partialTitle == null || partialCheck == null)
+		{
 			partialTitle = addControlTitle(client.getWidget(STORAGE_GROUP_ID, STORAGE_TITLE_CONTAINER), SET_TYPE_PARTIAL, "Partial Sets");
 			partialCheck = addControlCheckbox(client.getWidget(STORAGE_GROUP_ID, STORAGE_TITLE_CONTAINER), SET_TYPE_PARTIAL, "Partial Sets", showPartial);
 		}
-		else {
+		else
+		{
 			partialTitle.setHidden(false);
 			partialCheck.setHidden(false);
 		}
 
-		if (fullTitle == null || fullCheck == null) {
+		if (fullTitle == null || fullCheck == null)
+		{
 			fullTitle = addControlTitle(client.getWidget(STORAGE_GROUP_ID, STORAGE_TITLE_CONTAINER), SET_TYPE_FULL, "Full Sets");
 			fullCheck = addControlCheckbox(client.getWidget(STORAGE_GROUP_ID, STORAGE_TITLE_CONTAINER), SET_TYPE_FULL, "Full Sets", showFull);
 		}
-		else {
+		else
+		{
 			fullTitle.setHidden(false);
 			fullCheck.setHidden(false);
 		}
 	}
 
-	private void removeControls() {
+	private void removeControls()
+	{
 		emptyTitle.setHidden(true);
 		partialTitle.setHidden(true);
 		fullTitle.setHidden(true);
@@ -327,27 +377,33 @@ public class PohStoragePlugin extends Plugin
 		fullCheck.setHidden(true);
 	}
 
-	private void toggle(Widget toggle, String tooltip, boolean show) {
-		if (show) {
+	private void toggle(Widget toggle, String tooltip, boolean show)
+	{
+		if (show)
+		{
 			toggle.setOnMouseOverListener((JavaScriptCallback) ev -> toggle.setSpriteId(SpriteID.SQUARE_CHECK_BOX_HOVERED));
 			toggle.setOnMouseLeaveListener((JavaScriptCallback) ev -> toggle.setSpriteId(SpriteID.SQUARE_CHECK_BOX));
 			toggle.setSpriteId(SpriteID.SQUARE_CHECK_BOX);
 		}
-		else {
+		else
+		{
 			toggle.setOnMouseOverListener((JavaScriptCallback) ev -> toggle.setSpriteId(SpriteID.SQUARE_CHECK_BOX_CHECKED_HOVERED));
 			toggle.setOnMouseLeaveListener((JavaScriptCallback) ev -> toggle.setSpriteId(SpriteID.SQUARE_CHECK_BOX_CHECKED));
 			toggle.setSpriteId(SpriteID.SQUARE_CHECK_BOX_CHECKED);
 		}
 
-		if (tooltip.equals("Empty Sets")) {
+		if (tooltip.equals("Empty Sets"))
+		{
 			showEmpty = !showEmpty;
 			config.showEmptySets(showEmpty);
 		}
-		else if (tooltip.equals("Partial Sets")) {
+		else if (tooltip.equals("Partial Sets"))
+		{
 			showPartial = !showPartial;
 			config.showPartialSets(showPartial);
 		}
-		else if (tooltip.equals("Full Sets")) {
+		else if (tooltip.equals("Full Sets"))
+		{
 			showFull = !showFull;
 			config.showFullSets(showFull);
 		}
@@ -356,7 +412,8 @@ public class PohStoragePlugin extends Plugin
 		applyChanges();
 	}
 
-	private Widget addControlTitle(Widget parentWidget, int index, String title) {
+	private Widget addControlTitle(Widget parentWidget, int index, String title)
+	{
 		Widget titleWidget = parentWidget.createChild(-1, WidgetType.TEXT);
 		titleWidget.setText(title);
 		titleWidget.setOriginalWidth(CONTROL_TITLE_WIDTH);
@@ -370,7 +427,8 @@ public class PohStoragePlugin extends Plugin
 		return titleWidget;
 	}
 
-	private Widget addControlCheckbox(Widget parentWidget, int index, String tooltip, boolean show) {
+	private Widget addControlCheckbox(Widget parentWidget, int index, String tooltip, boolean show)
+	{
 		Widget checkWidget = parentWidget.createChild(-1, WidgetType.GRAPHIC);
 		checkWidget.setOriginalWidth(CONTROL_CHECKBOX_WIDTH);
 		checkWidget.setOriginalHeight(CONTROL_CHECKBOX_HEIGHT);
@@ -381,12 +439,14 @@ public class PohStoragePlugin extends Plugin
 
 		checkWidget.setHasListener(true);
 		checkWidget.setOnOpListener((JavaScriptCallback) ev -> toggle(checkWidget, tooltip, show));
-		if (show) {
+		if (show)
+		{
 			checkWidget.setSpriteId(SpriteID.SQUARE_CHECK_BOX_CHECKED);
 			checkWidget.setOnMouseOverListener((JavaScriptCallback) ev -> checkWidget.setSpriteId(SpriteID.SQUARE_CHECK_BOX_CHECKED_HOVERED));
 			checkWidget.setOnMouseLeaveListener((JavaScriptCallback) ev -> checkWidget.setSpriteId(SpriteID.SQUARE_CHECK_BOX_CHECKED));
 		}
-		else {
+		else
+		{
 			checkWidget.setSpriteId(SpriteID.SQUARE_CHECK_BOX);
 			checkWidget.setOnMouseOverListener((JavaScriptCallback) ev -> checkWidget.setSpriteId(SpriteID.SQUARE_CHECK_BOX_HOVERED));
 			checkWidget.setOnMouseLeaveListener((JavaScriptCallback) ev -> checkWidget.setSpriteId(SpriteID.SQUARE_CHECK_BOX));
@@ -397,7 +457,8 @@ public class PohStoragePlugin extends Plugin
 		return checkWidget;
 	}
 
-	private void addDivider(int y) {
+	private void addDivider(int y)
+	{
 		Widget parent = client.getWidget(STORAGE_GROUP_ID, STORAGE_ITEM_CONTAINER);
 		Widget child = parent.createChild(-1, WidgetType.GRAPHIC);
 		child.setOriginalWidth(WIDGET_DIVIDER_WIDTH);
@@ -410,39 +471,49 @@ public class PohStoragePlugin extends Plugin
 		addedDividers.add(child);
 	}
 
-	private void adjustWidgets() {
+	private void adjustWidgets()
+	{
 		int normalOpacity = config.shadeOpacity();
-		int hoverOpacity = (normalOpacity>20) ? normalOpacity - 20 : 0;
-		int x=0;
-		int top=0;
+		int hoverOpacity = (normalOpacity > 20) ? normalOpacity - 20 : 0;
+		int x = 0;
+		int top = 0;
 
-		List <PohStorageSet> hideSets = new ArrayList <PohStorageSet>();
-		List <PohStorageSet> adjustSets = new ArrayList <PohStorageSet>();
+		List<PohStorageSet> hideSets = new ArrayList<PohStorageSet>();
+		List<PohStorageSet> adjustSets = new ArrayList<PohStorageSet>();
 
-		for (PohStorageSet storageSet : storageSets) {
-			if((storageSet.getType()==SET_TYPE_EMPTY && !showEmpty) || (storageSet.getType()==SET_TYPE_PARTIAL && !showPartial) || (storageSet.getType()==SET_TYPE_FULL && !showFull))
+		for (PohStorageSet storageSet : storageSets)
+		{
+			if ((storageSet.getType() == SET_TYPE_EMPTY && !showEmpty) || (storageSet.getType() == SET_TYPE_PARTIAL && !showPartial) || (storageSet.getType() == SET_TYPE_FULL && !showFull))
+			{
 				hideSets.add(storageSet);
+			}
 			else
+			{
 				adjustSets.add(storageSet);
+			}
 		}
 
 		Collections.sort(adjustSets);
 
 		// Hide unwanted widgets
-		for (PohStorageSet storageSet : hideSets) {
-			for (Widget hideWidget : storageSet.getAllWidgets()) {
+		for (PohStorageSet storageSet : hideSets)
+		{
+			for (Widget hideWidget : storageSet.getAllWidgets())
+			{
 				hideWidget.setHidden(true);
 			}
 		}
 
 		// Adjust others
-		for (int i=0; i<adjustSets.size(); i++) {
+		for (int i = 0; i < adjustSets.size(); i++)
+		{
 			int finalI = i;
 
 			top = x * WIDGET_SET_HEIGHT;
 			x++;
 
-			if (i>0 && adjustSets.get(i-1).isCollapsible() && adjustSets.get(i-1).getColumn()==1 && adjustSets.get(i).isCollapsible()) {
+			if (i > 0 && adjustSets.get(i - 1).isCollapsible() && adjustSets.get(i - 1).getColumn() == 1 && adjustSets.get(i).isCollapsible())
+			{
 
 				// Right Half
 				adjustSets.get(i).setColumn(2);
@@ -468,7 +539,8 @@ public class PohStoragePlugin extends Plugin
 				addDivider(top);
 
 			}
-			else if (i<adjustSets.size()-1 && adjustSets.get(i).isCollapsible() && adjustSets.get(i+1).isCollapsible()) {
+			else if (i < adjustSets.size() - 1 && adjustSets.get(i).isCollapsible() && adjustSets.get(i + 1).isCollapsible())
+			{
 
 				// Left Half
 				adjustSets.get(i).getOutline().getWidget().setOriginalWidth(WIDGET_SET_WIDTH);
@@ -489,7 +561,8 @@ public class PohStoragePlugin extends Plugin
 				shiftIcons(adjustSets.get(i).getWidgetItems(), WIDGET_OFFSET, top + WIDGET_ICON_TOP_OFFSET);
 
 			}
-			else {
+			else
+			{
 
 				// Full Width
 				adjustSets.get(i).getOutline().getWidget().setOriginalWidth(0);
@@ -513,18 +586,21 @@ public class PohStoragePlugin extends Plugin
 
 			adjustSets.get(i).getOutline().getWidget().setOriginalY(top);
 
-			if (adjustSets.get(i).getType()==SET_TYPE_EMPTY && config.emptySetColor().getSpriteId() != 0) {
+			if (adjustSets.get(i).getType() == SET_TYPE_EMPTY && config.emptySetColor().getSpriteId() != 0)
+			{
 				adjustSets.get(i).getOutline().getWidget().setSpriteId(config.emptySetColor().getSpriteId());
 				adjustSets.get(i).getOutline().getWidget().setOpacity(normalOpacity);
 			}
-			else if (adjustSets.get(i).getType()==SET_TYPE_PARTIAL && config.partialSetColor().getSpriteId() != 0) {
+			else if (adjustSets.get(i).getType() == SET_TYPE_PARTIAL && config.partialSetColor().getSpriteId() != 0)
+			{
 				adjustSets.get(i).getOutline().getWidget().setSpriteId(config.partialSetColor().getSpriteId());
 				adjustSets.get(i).getOutline().getWidget().setOpacity(normalOpacity);
 
 				adjustSets.get(i).getOutline().getWidget().setOnMouseRepeatListener((JavaScriptCallback) ev -> adjustSets.get(finalI).getOutline().getWidget().setOpacity(hoverOpacity));
 				adjustSets.get(i).getOutline().getWidget().setOnMouseLeaveListener((JavaScriptCallback) ev -> adjustSets.get(finalI).getOutline().getWidget().setOpacity(normalOpacity));
 			}
-			else if (adjustSets.get(i).getType()==SET_TYPE_FULL && config.fullSetColor().getSpriteId() != 0) {
+			else if (adjustSets.get(i).getType() == SET_TYPE_FULL && config.fullSetColor().getSpriteId() != 0)
+			{
 				adjustSets.get(i).getOutline().getWidget().setSpriteId(config.fullSetColor().getSpriteId());
 				adjustSets.get(i).getOutline().getWidget().setOpacity(normalOpacity);
 				adjustSets.get(i).getOutline().getWidget().setOnMouseRepeatListener((JavaScriptCallback) ev -> adjustSets.get(finalI).getOutline().getWidget().setOpacity(hoverOpacity));
@@ -536,43 +612,49 @@ public class PohStoragePlugin extends Plugin
 			adjustSets.get(i).getHeader().getWidget().setOriginalY(top);
 			adjustSets.get(i).getHeader().getWidget().revalidate();
 
-			adjustSets.get(i).getArrow().getWidget().setOriginalY(top+5);
+			adjustSets.get(i).getArrow().getWidget().setOriginalY(top + 5);
 			adjustSets.get(i).getArrow().getWidget().revalidate();
 
-			adjustSets.get(i).getFooter().getWidget().setOriginalY(top+40);
+			adjustSets.get(i).getFooter().getWidget().setOriginalY(top + 40);
 			adjustSets.get(i).getFooter().getWidget().revalidate();
 		}
 
 		Widget container = client.getWidget(STORAGE_GROUP_ID, STORAGE_ITEM_CONTAINER);
 
 		int y = x * WIDGET_SET_HEIGHT - WIDGET_OFFSET;
-		if (container.getHeight()>y)
-			y=0;
+		if (container.getHeight() > y)
+		{
+			y = 0;
+		}
 
 		container.setScrollHeight(y);
 		container.revalidateScroll();
 
 		client.runScript(
-				ScriptID.UPDATE_SCROLLBAR,
-				STORAGE_GROUP_ID << 16 | STORAGE_SCROLLBAR,
-				STORAGE_GROUP_ID << 16 | STORAGE_ITEM_CONTAINER,
-				container.getScrollY()
+			ScriptID.UPDATE_SCROLLBAR,
+			STORAGE_GROUP_ID << 16 | STORAGE_SCROLLBAR,
+			STORAGE_GROUP_ID << 16 | STORAGE_ITEM_CONTAINER,
+			container.getScrollY()
 		);
 	}
 
-	private void shiftIcons(List<Widget> items, int adjustmentX, int finalY) {
-		for (int j=0; j<items.size(); j++) {
+	private void shiftIcons(List<Widget> items, int adjustmentX, int finalY)
+	{
+		for (int j = 0; j < items.size(); j++)
+		{
 			items.get(j).setOriginalX((WIDGET_ICON_WIDTH + 2 * WIDGET_OFFSET) * j + adjustmentX);
 			items.get(j).setOriginalY(finalY);
 			items.get(j).revalidate();
 		}
 	}
 
-	private PohStorageWidget newPohStorageWidget(Widget widget) {
+	private PohStorageWidget newPohStorageWidget(Widget widget)
+	{
 		return new PohStorageWidget(widget, widget.getId(), widget.getOriginalX(), widget.getOriginalY(), widget.getOriginalWidth(), widget.getOpacity(), widget.getSpriteId(), widget.isHidden(), widget.getWidthMode(), widget.getXPositionMode());
 	}
 
-	private PohStorageSet newPohStorageSet(Widget headerWidget) {
+	private PohStorageSet newPohStorageSet(Widget headerWidget)
+	{
 		int textId = headerWidget.getIndex();
 
 		// Create building blocks
@@ -585,24 +667,34 @@ public class PohStoragePlugin extends Plugin
 		int stored = 0;
 		int offset = 1;
 		List<PohStorageWidget> items = new ArrayList<PohStorageWidget>();
-		while (headerWidget.getParent().getChild(textId+offset).getWidth() == WIDGET_ICON_WIDTH) {
-			if (!headerWidget.getParent().getChild(textId+offset).isHidden()) {
+		while (headerWidget.getParent().getChild(textId + offset).getWidth() == WIDGET_ICON_WIDTH)
+		{
+			if (!headerWidget.getParent().getChild(textId + offset).isHidden())
+			{
 				items.add(newPohStorageWidget(headerWidget.getParent().getChild(textId + offset)));
-				if (headerWidget.getParent().getChild(textId + offset).getOpacity()==0)
+				if (headerWidget.getParent().getChild(textId + offset).getOpacity() == 0)
+				{
 					stored++;
+				}
 			}
 			offset++;
 		}
 
 		int type;
 		if (stored == items.size())
+		{
 			type = SET_TYPE_FULL;
+		}
 		else if (stored == 0)
+		{
 			type = SET_TYPE_EMPTY;
+		}
 		else
+		{
 			type = SET_TYPE_PARTIAL;
+		}
 
-		return new PohStorageSet(outline, arrow, footer, header, items, headerWidget.getText(), type, items.size()<=MAX_HALF_SET);
+		return new PohStorageSet(outline, arrow, footer, header, items, headerWidget.getText(), type, items.size() <= MAX_HALF_SET);
 	}
 
 }
