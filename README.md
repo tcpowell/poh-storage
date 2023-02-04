@@ -2,10 +2,10 @@
 Allows for highlighting and/or filtering of POH storage units.
 
 ## Example
-![](https://github.com/dekuScrub731/images/blob/master/poh-storage-example.gif)
+![](https://github.com/tcpowell/images/blob/master/poh-storage-example.gif)
 
 ## Configuration Options
-![](https://github.com/dekuScrub731/images/blob/master/poh-storage-config.png)
+![](https://github.com/tcpowell/images/blob/master/poh-storage-config.png)
 
 ## Change Log
 
